@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from detectors.prompt_guard import PromptGuard
+from detectors.protectai import ProtectAI
 
 DATA_DIR = Path("data")
 RESULTS_PATH = Path("results/raw.jsonl")
@@ -24,25 +25,26 @@ def load_cache():
 
 
 def run():
-    detector = PromptGuard()
+    detectors = [PromptGuard(), ProtectAI()]
     payloads = load_jsonl(DATA_DIR / "attacks.jsonl") + load_jsonl(DATA_DIR / "benign.jsonl")
     cache = load_cache()
 
     RESULTS_PATH.parent.mkdir(exist_ok=True)
     with open(RESULTS_PATH, "a", encoding="utf-8") as out:
-        for payload in payloads:
-            key = (payload["id"], detector.name)
-            if key in cache:
-                continue
-            prediction = detector.predict(payload["text"])
-            row = {
-                "payload_id": payload["id"],
-                "detector": detector.name,
-                "label": payload["label"],
-                "flagged": prediction["flagged"],
-                "score": prediction["score"],
-            }
-            out.write(json.dumps(row) + "\n")
+        for detector in detectors:
+            for payload in payloads:
+                key = (payload["id"], detector.name)
+                if key in cache:
+                    continue
+                prediction = detector.predict(payload["text"])
+                row = {
+                    "payload_id": payload["id"],
+                    "detector": detector.name,
+                    "label": payload["label"],
+                    "flagged": prediction["flagged"],
+                    "score": prediction["score"],
+                }
+                out.write(json.dumps(row) + "\n")
 
 
 if __name__ == "__main__":

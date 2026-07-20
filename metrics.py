@@ -23,12 +23,13 @@ def main():
     rows = load_results()
     detectors = sorted({r["detector"] for r in rows})
 
+    header = f"{'detector':<15}{'detection_rate':>16}{'over_defense':>16}"
+    print(header)
+    print("-" * len(header))
     for detector in detectors:
         detector_rows = [r for r in rows if r["detector"] == detector]
         detection_rate, over_defense_rate = compute_metrics(detector_rows)
-        print(detector)
-        print(f"  detection rate:  {detection_rate:.1%}")
-        print(f"  over-defense:    {over_defense_rate:.1%}")
+        print(f"{detector:<15}{detection_rate:>15.1%} {over_defense_rate:>15.1%}")
 
 
 if __name__ == "__main__":
