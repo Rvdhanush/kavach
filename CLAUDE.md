@@ -47,6 +47,5 @@ This is **defensive security research**: we evaluate defenses, we do not build a
 - Detector adapters stay thin and uniform; all logic differences live inside the adapter.
 
 ## Commands
-<!-- fill in as the repo takes shape -->
 - Install: `pip install -r requirements.txt`
-- Run a benchmark: `python run.py --config configs/phase1.yaml`
+- Run a benchmark: `python run.py`

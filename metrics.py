@@ -1,7 +1,24 @@
 import json
+import math
 from pathlib import Path
 
 RESULTS_PATH = Path("results/raw.jsonl")
+
+Z_95 = 1.959963984540054  # two-sided 95% CI
+
+
+def wilson_interval(successes, n, z=Z_95):
+    """Wilson score interval for a binomial proportion; safer than the
+    normal approximation for rates near 0% or 100%."""
+    if n == 0:
+        return 0.0, 0.0
+    phat = successes / n
+    denom = 1 + z**2 / n
+    center = phat + z**2 / (2 * n)
+    margin = z * math.sqrt((phat * (1 - phat) + z**2 / (4 * n)) / n)
+    low = (center - margin) / denom
+    high = (center + margin) / denom
+    return max(0.0, low), min(1.0, high)
 
 
 def load_results():
@@ -9,27 +26,41 @@ def load_results():
         return [json.loads(line) for line in f if line.strip()]
 
 
+def _rate_with_ci(rows):
+    n = len(rows)
+    successes = sum(r["flagged"] for r in rows)
+    rate = successes / n if n else 0.0
+    return rate, wilson_interval(successes, n)
+
+
 def compute_metrics(rows):
     attacks = [r for r in rows if r["label"] == 1]
     benign = [r for r in rows if r["label"] == 0]
 
-    detection_rate = sum(r["flagged"] for r in attacks) / len(attacks) if attacks else 0.0
-    over_defense_rate = sum(r["flagged"] for r in benign) / len(benign) if benign else 0.0
+    detection_rate, detection_ci = _rate_with_ci(attacks)
+    over_defense_rate, over_defense_ci = _rate_with_ci(benign)
 
-    return detection_rate, over_defense_rate
+    return detection_rate, detection_ci, over_defense_rate, over_defense_ci
+
+
+def _format_rate(rate, ci):
+    low, high = ci
+    return f"{rate:.1%} [{low:.1%}, {high:.1%}]"
 
 
 def main():
     rows = load_results()
     detectors = sorted({r["detector"] for r in rows})
 
-    header = f"{'detector':<15}{'detection_rate':>16}{'over_defense':>16}"
+    header = f"{'detector':<15}{'detection_rate':>26}{'over_defense':>28}"
     print(header)
     print("-" * len(header))
     for detector in detectors:
         detector_rows = [r for r in rows if r["detector"] == detector]
-        detection_rate, over_defense_rate = compute_metrics(detector_rows)
-        print(f"{detector:<15}{detection_rate:>15.1%} {over_defense_rate:>15.1%}")
+        detection_rate, detection_ci, over_defense_rate, over_defense_ci = compute_metrics(detector_rows)
+        detection_str = _format_rate(detection_rate, detection_ci)
+        over_defense_str = _format_rate(over_defense_rate, over_defense_ci)
+        print(f"{detector:<15}{detection_str:>26}{over_defense_str:>28}")
 
 
 if __name__ == "__main__":
