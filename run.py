@@ -3,6 +3,7 @@ from pathlib import Path
 
 from detectors.prompt_guard import PromptGuard
 from detectors.protectai import ProtectAI
+from detectors.llama_guard import LlamaGuard
 
 DATA_DIR = Path("data")
 RESULTS_PATH = Path("results/raw.jsonl")
@@ -25,7 +26,7 @@ def load_cache():
 
 
 def run():
-    detectors = [PromptGuard(), ProtectAI()]
+    detectors = [PromptGuard(), ProtectAI(), LlamaGuard()]
     payloads = load_jsonl(DATA_DIR / "attacks.jsonl") + load_jsonl(DATA_DIR / "benign.jsonl")
     cache = load_cache()
 
