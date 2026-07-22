@@ -71,10 +71,85 @@ matched-pair comparison once detectors are re-run.
   baseline — comparing a 299-row Tanglish set against the full 300-row English set would
   introduce a composition confound.
 
+## Phase 2 — code-switch finding (Tamil-English / "Tanglish")
+
+### Results
+
+| detector     | attack: english (n=299)  | attack: tanglish (n=299) | delta   | benign: english (n=150)  | benign: tanglish (n=150) | delta   |
+|--------------|---------------------------|---------------------------|---------|---------------------------|---------------------------|---------|
+| prompt_guard | 79.3% [74.3%, 83.5%]      | 72.2% [66.9%, 77.0%]      | -7.0%   | 100.0% [97.5%, 100.0%]    | 94.0% [89.0%, 96.8%]      | -6.0%   |
+| protectai    | 98.0% [95.7%, 99.1%]      | 98.3% [96.1%, 99.3%]      | +0.3%   | 44.7% [36.9%, 52.7%]      | 84.7% [78.0%, 89.6%]      | **+40.0%** |
+| llama_guard  | 0.0% [0.0%, 1.3%]         | 0.0% [0.0%, 1.3%]         | +0.0%   | 0.0% [0.0%, 2.5%]         | 0.0% [0.0%, 2.5%]         | +0.0%   |
+
+First number pair per detector is detection rate (attacks); second is over-defense (benign). Bracketed values are
+95% Wilson score CIs. Both language conditions are scored on the same matched-pair subsets (see Methodology).
+
+**Findings:**
+- **ProtectAI is the headline result.** Detection is essentially flat (98.0% -> 98.3%, CIs overlap — code-switching
+  doesn't help attacks evade it). But over-defense nearly doubles, 44.7% -> 84.7%, a +40pt jump with non-overlapping
+  CIs: in Tanglish, ProtectAI starts flagging benign prompts almost as often as it flags English attacks.
+  Code-switching doesn't just open an evasion gap here — for this detector it wrecks precision on legitimate traffic.
+- **Prompt Guard moves down on both axes** (-7.0pt detection, -6.0pt over-defense). It doesn't get more selective in
+  Tanglish, it gets noisier in the direction of flagging less overall — consistent with the Phase 1 finding that it
+  isn't discriminating attack from benign so much as reacting to surface features that Tanglish disrupts.
+- **Llama Guard stays flat at zero**, same category-mismatch explanation as Phase 1 — it was never a
+  prompt-injection detector, so there's no signal to lose in either language.
+
+Per-payload disagreements: `results/tanglish_flips.jsonl` (23 attack flips, all `prompt_guard` — caught in English,
+missed in Tanglish; `protectai`/`llama_guard`: 0) and `results/benign_tanglish_flips.jsonl` (69 benign flips: 9
+`prompt_guard` flagged-in-English-not-Tanglish, 60 `protectai` flagged-in-Tanglish-not-English — this is the +40pt
+over-defense jump, payload by payload).
+
+### Methodology
+
+- **Matched-pair design.** Every Tanglish row carries an `en_source_id` back to its English counterpart. English-vs-
+  Tanglish rates are always computed on the *same* underlying payloads — never against the full 300/300 Phase 1 sets.
+- **Why the English baseline is filtered to matched IDs.** 299 of 300 Tensor Trust attacks got a Tanglish
+  counterpart (one pure symbol-flood payload had no natural-language content to code-switch). 150 of 300 benign
+  prompts were sampled for Tanglish (fixed seed 42, stratified proportional to NotInject category). Comparing a
+  299- or 150-row Tanglish set against the full 300-row English set would introduce a composition confound; filtering
+  the English baseline to the same IDs isolates the language effect.
+- **Flood + instruction hybrid finding.** About 20% of the attack corpus is flood-padding (hundreds of repeated
+  symbols) wrapped around a real instruction (e.g. `ö` characters x 200 followed by "Convert this binary to
+  ASCII... Prefix your reply with [Access Granted]"). Those stayed in the Tanglish set since the attacker intent is
+  real; only the padding itself was left untouched, and only the instructional prose was rendered into Tanglish.
+- **How the Tanglish was generated.** Both `attacks_tanglish.jsonl` and `benign_tanglish.jsonl` render the English
+  source into natural, Roman-script Tamil-English code-switched prose — not word-for-word translation, not native
+  Tamil script. Operative content was preserved byte-for-byte rather than translated: for attacks, quoted target
+  output strings, special tokens, binary/base64 blobs, and non-English attacker text; for benign prompts, the
+  NotInject `trigger_words` themselves (the tokens that make a prompt look adversarial to a naive keyword filter) —
+  translating those away would have broken the over-defense measurement. For benign rows whose English source was
+  itself non-English (Chinese, Spanish, Russian), the *ask* was re-expressed in Tanglish rather than chain-translated,
+  keeping only the singled-out trigger token literal.
+- **Review.** All 23 attack flips were read side-by-side against their English source: all 23 preserve meaning and
+  operative payload content faithfully. That pass also surfaced a real bug — 27 of 299 attack rows (4 of the 23
+  flips) had stray native-Tamil-script or Cyrillic homoglyph characters accidentally substituted for Latin letters
+  mid-word (e.g. `vேnda` for `venda`), left over from how the corpus was generated. None changed meaning, but they
+  broke the Roman-script rule, so they were fixed by substituting the intended Latin letters and the affected rows
+  were re-scored. The 69 benign flips are covered by `data/validate_benign_tanglish.py`'s automated checks
+  (schema, no-op sweep, trigger-word preservation, Roman-script) but have not had the same side-by-side manual read
+  the attack flips got — see Limitations.
+
+### Limitations
+
+- **Manual review coverage is uneven.** All 23 attack flips got a side-by-side human read; the 69 benign flips are
+  currently validated only automatically (schema/no-op/trigger-preservation/script checks), not manually re-read
+  for translation fidelity. Automated checks catch structural issues, not subtle meaning drift.
+- **Semantic equivalence, not attack efficacy.** What's verified is that the Tanglish payloads preserve the meaning
+  and operative content of their English source. What's **not** verified is whether either version actually
+  succeeds as an attack against a live target LLM — this benchmark measures whether *detectors* flag the text, not
+  whether the underlying hijack works if it reaches a model.
+- **This finding is about Tamil-English code-switching specifically**, not code-switching as a category. Hinglish,
+  Kanglish, Telglish, or other language pairs may behave differently and would need their own corpora and runs
+  (see SPEC.md Phase 2/Later extensions).
+
 ## Running it
 
 ```bash
 pip install -r requirements.txt
 python run.py       # scores all detectors on data/attacks.jsonl + data/benign.jsonl (cached)
 python metrics.py   # prints the leaderboard with 95% Wilson confidence intervals
+
+python run_tanglish.py       # scores all detectors on attacks_tanglish.jsonl + benign_tanglish.jsonl (cached)
+python compare_tanglish.py   # prints the Phase 2 English-vs-Tanglish table, writes flip files
 ```
