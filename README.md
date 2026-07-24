@@ -3,12 +3,15 @@
 An independent robustness benchmark for LLM safety guardrails — it measures how well
 prompt-injection/jailbreak detectors actually catch attacks, not how they self-report.
 
-![Kavach — "Every one of these is a normal message. Your guardrail calls them attacks." An ordinary Tamil-English message shown blocked by the detector.](assets/preview-hero-ta.png)
+**Live: [rvdhanush.github.io/kavach](https://rvdhanush.github.io/kavach/)**
+
+[![Kavach — "Every one of these is a normal message. Your guardrail calls them attacks." An ordinary Tamil-English message shown blocked by the detector.](assets/preview-hero-ta.png)](https://rvdhanush.github.io/kavach/)
 
 There's a static site in [`docs/`](docs/) (built from the committed results by
 [`build_site.py`](build_site.py)) with the leaderboard, an interactive **explorer** over every
-scored payload, and the Phase 2 code-switch finding. It deploys to GitHub Pages from `docs/`
-(expected URL: `https://rvdhanush.github.io/kavach/`). See [Public site](#public-site).
+scored payload, and the Phase 2 code-switch finding — **live at
+[rvdhanush.github.io/kavach](https://rvdhanush.github.io/kavach/)**, served by GitHub Pages from
+`docs/`. See [Public site](#public-site).
 
 ## Results (Phase 1 — English, 300 attacks + 300 benign, 95% Wilson CI)
 
@@ -187,9 +190,9 @@ it works over `file://` (opening the HTML directly) as well as over GitHub Pages
 
 ### Deploy
 
-GitHub Pages → *Deploy from a branch* → `master` / `docs`. Expected URL:
-`https://rvdhanush.github.io/kavach/`. (Social-preview image `og.png` is referenced in the head
-but not yet generated — see Roadmap.)
+**Live at [rvdhanush.github.io/kavach](https://rvdhanush.github.io/kavach/)**, served by GitHub
+Pages from `master` / `docs`. (The social-preview `og.png` referenced in the page head isn't
+generated yet — see Roadmap; the README preview images above are separate.)
 
 ## Running it
 
@@ -213,8 +216,8 @@ python build_site.py         # regenerates docs/index.html + docs/explorer-data.
 Phase 0 (prove the loop) and Phase 1 (English leaderboard) are done; Phase 2 (the Tamil-English
 code-switch finding + a precomputed explorer) is the current deliverable. Next, in rough order:
 
-1. **Ship it** — enable GitHub Pages on `docs/`, and generate the `og.png` social-preview image
-   (a 1200×630 render of the hero) so shared links look right.
+1. **Polish the launch** — the site is live on GitHub Pages; still to do is the `og.png`
+   social-preview image (a 1200×630 render of the hero) so links shared to Slack/X preview right.
 2. **Close the review gap** — the 69 benign flips are currently validated only automatically; give
    them the same side-by-side manual read the 23 attack flips got (see Limitations).
 3. **More detectors** — LLM Guard, LlamaFirewall, and an **LLM-as-judge** (calibrated against
