@@ -3,6 +3,8 @@
 An independent robustness benchmark for LLM safety guardrails — it measures how well
 prompt-injection/jailbreak detectors actually catch attacks, not how they self-report.
 
+![Kavach — "Every one of these is a normal message. Your guardrail calls them attacks." An ordinary Tamil-English message shown blocked by the detector.](assets/preview-hero-ta.png)
+
 There's a static site in [`docs/`](docs/) (built from the committed results by
 [`build_site.py`](build_site.py)) with the leaderboard, an interactive **explorer** over every
 scored payload, and the Phase 2 code-switch finding. It deploys to GitHub Pages from `docs/`
@@ -168,6 +170,8 @@ The page has: the finding hero + a live English↔Tanglish message log, a metric
 attacks evade — detection is flat — but over-defense on benign Tanglish nearly doubled).
 
 ### The explorer
+
+![The explorer: a benign Tamil-English prompt selected, showing ProtectAI and Prompt Guard blocking it in Tanglish while Llama Guard allows it, with per-detector scores.](assets/preview-explorer.png)
 
 `build_site.py` also emits **`docs/explorer-data.js`** — a JSON blob (one object per matched
 EN/Tanglish pair: both texts + both languages' real verdict & score for all three detectors),
