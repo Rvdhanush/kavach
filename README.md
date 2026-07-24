@@ -3,6 +3,11 @@
 An independent robustness benchmark for LLM safety guardrails — it measures how well
 prompt-injection/jailbreak detectors actually catch attacks, not how they self-report.
 
+There's a static site in [`docs/`](docs/) (built from the committed results by
+[`build_site.py`](build_site.py)) with the leaderboard, an interactive **explorer** over every
+scored payload, and the Phase 2 code-switch finding. It deploys to GitHub Pages from `docs/`
+(expected URL: `https://rvdhanush.github.io/kavach/`). See [Public site](#public-site).
+
 ## Results (Phase 1 — English, 300 attacks + 300 benign, 95% Wilson CI)
 
 | detector     | detection rate            | over-defense (false-positive rate) |
@@ -143,6 +148,45 @@ over-defense jump, payload by payload).
   Kanglish, Telglish, or other language pairs may behave differently and would need their own corpora and runs
   (see SPEC.md Phase 2/Later extensions).
 
+## Public site
+
+A single static page — **no backend, no live inference.** Every number and payload it shows is
+read from the committed results at build time; rerun the builder after a re-score and the site
+updates with zero manual edits.
+
+- **[`build_site.py`](build_site.py)** reads `results/raw.jsonl` + the `data/` corpora + the flip
+  files, recomputes every rate/CI with the *same* functions `metrics.py` and `compare_tanglish.py`
+  use (so the page and the CLI can never drift), and renders
+  **[`design/template.html.j2`](design/template.html.j2)** → **`docs/index.html`**.
+- **[`design/mockup.html`](design/mockup.html)** is the visual reference the template is styled
+  after (warm dark, Instrument Serif / Chivo / Spline Sans Mono, message-log signature).
+  `design/direction-a-superseded.html` is an earlier direction kept for history.
+
+The page has: the finding hero + a live English↔Tanglish message log, a metric strip, the full
+2×2 detector table with Wilson CIs and deltas, an **interactive explorer**, then *What this means
+/ Method / Limits*, all following the actual Phase 2 result (code-switching did **not** help
+attacks evade — detection is flat — but over-defense on benign Tanglish nearly doubled).
+
+### The explorer
+
+`build_site.py` also emits **`docs/explorer-data.js`** — a JSON blob (one object per matched
+EN/Tanglish pair: both texts + both languages' real verdict & score for all three detectors),
+generated straight from committed results, nothing hand-copied. The explorer lets you:
+
+- browse all **449 matched pairs** (299 attack + 150 benign),
+- toggle a payload **English ↔ Tanglish** and watch each detector's verdict and score move,
+- filter by **type** (attack/benign), **flip status** (flipped/unchanged), and **detector**,
+- opening on the finding: benign prompts that flip to *blocked* in Tanglish.
+
+It's precomputed — the browser never calls a model. The data file loads as a `<script>` global so
+it works over `file://` (opening the HTML directly) as well as over GitHub Pages.
+
+### Deploy
+
+GitHub Pages → *Deploy from a branch* → `master` / `docs`. Expected URL:
+`https://rvdhanush.github.io/kavach/`. (Social-preview image `og.png` is referenced in the head
+but not yet generated — see Roadmap.)
+
 ## Running it
 
 ```bash
@@ -152,4 +196,34 @@ python metrics.py   # prints the leaderboard with 95% Wilson confidence interval
 
 python run_tanglish.py       # scores all detectors on attacks_tanglish.jsonl + benign_tanglish.jsonl (cached)
 python compare_tanglish.py   # prints the Phase 2 English-vs-Tanglish table, writes flip files
+
+python build_site.py         # regenerates docs/index.html + docs/explorer-data.js from the results
 ```
+
+> Note: `results/raw.jsonl` now holds both the Phase 1 English rows and the Phase 2 Tanglish rows.
+> `metrics.py` filters to the English-only payload IDs before scoring, so `python metrics.py`
+> reproduces the Phase 1 leaderboard exactly rather than mixing the two corpora.
+
+## Roadmap (next scopes)
+
+Phase 0 (prove the loop) and Phase 1 (English leaderboard) are done; Phase 2 (the Tamil-English
+code-switch finding + a precomputed explorer) is the current deliverable. Next, in rough order:
+
+1. **Ship it** — enable GitHub Pages on `docs/`, and generate the `og.png` social-preview image
+   (a 1200×630 render of the hero) so shared links look right.
+2. **Close the review gap** — the 69 benign flips are currently validated only automatically; give
+   them the same side-by-side manual read the 23 attack flips got (see Limitations).
+3. **More detectors** — LLM Guard, LlamaFirewall, and an **LLM-as-judge** (calibrated against
+   ~100 hand-labels, TP/TN reported). Adding one is a single adapter file.
+4. **More code-switch pairs** — Hinglish (Hindi-English) next, then Kanglish / Telglish /
+   Bengali-English. Each needs its own generated corpus and a re-run; the finding so far is about
+   Tamil-English specifically, not code-switching as a category.
+5. **More attack types** — indirect injection (Microsoft BIPIA), tool-misuse, multi-turn
+   jailbreaks, beyond the current direct prompt-hijacking set.
+6. **Living leaderboard** — re-run on new detector releases and keep the site current.
+7. **Eventually** — a code-switch-aware guardrail that *fixes* the over-defense gap, with this
+   benchmark as the proof it works.
+
+This stays **defensive** throughout: public checkpoints and public datasets only; we measure how
+well existing defenses behave, and never author novel attack payloads beyond what the cited
+datasets already contain.

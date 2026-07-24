@@ -3,6 +3,8 @@ import math
 from pathlib import Path
 
 RESULTS_PATH = Path("results/raw.jsonl")
+ATTACKS_PATH = Path("data/attacks.jsonl")
+BENIGN_PATH = Path("data/benign.jsonl")
 
 Z_95 = 1.959963984540054  # two-sided 95% CI
 
@@ -21,9 +23,24 @@ def wilson_interval(successes, n, z=Z_95):
     return max(0.0, low), min(1.0, high)
 
 
-def load_results():
-    with open(RESULTS_PATH, encoding="utf-8") as f:
+def load_jsonl(path):
+    with open(path, encoding="utf-8") as f:
         return [json.loads(line) for line in f if line.strip()]
+
+
+def load_english_ids():
+    """Payload IDs from the Phase 1 English-only sets, to filter raw.jsonl
+    now that it also holds Phase 2 Tanglish rows (same file, shared cache)."""
+    attacks = load_jsonl(ATTACKS_PATH)
+    benign = load_jsonl(BENIGN_PATH)
+    return {r["id"] for r in attacks} | {r["id"] for r in benign}
+
+
+def load_results():
+    english_ids = load_english_ids()
+    with open(RESULTS_PATH, encoding="utf-8") as f:
+        rows = [json.loads(line) for line in f if line.strip()]
+    return [r for r in rows if r["payload_id"] in english_ids]
 
 
 def _rate_with_ci(rows):
